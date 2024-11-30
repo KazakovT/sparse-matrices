@@ -137,29 +137,37 @@ void measurePerformance(const SparseMatrix& mat1, const SparseMatrix& mat2, int 
 }
 
 int main() {
-    SparseMatrix mat1(8, 8);
-    mat1.addElement(0, 0, 1.0);
-    mat1.addElement(0, 7, 2.0);
-    mat1.addElement(1, 1, 3.0);
-    mat1.addElement(2, 2, 4.0);
-    mat1.addElement(3, 3, 5.0);
-    mat1.addElement(4, 4, 6.0);
-    mat1.addElement(5, 5, 7.0);
-    mat1.addElement(6, 6, 8.0);
-    mat1.addElement(7, 7, 9.0);
+   std::ifstream file("input.txt");
+    if (!file.is_open()) {
+        throw std::runtime_error("Unable to open file");
+    }
+
+    int rows;
+    file >> rows;
+    SparseMatrix mat1(rows, rows);
+    SparseMatrix mat2(rows, rows);
+
+    int n1, n2;
+    file >> n1;
+    for (int i = 0; i < n1; ++i) {
+        int row, col;
+        double value;
+        file >> row >> col >> value;
+        mat1.addElement(row, col, value);
+    }
     mat1.finalize();
 
-    SparseMatrix mat2(8, 8);
-    mat2.addElement(0, 0, 10.0);
-    mat2.addElement(1, 1, 11.0);
-    mat2.addElement(2, 2, 12.0);
-    mat2.addElement(3, 3, 13.0);
-    mat2.addElement(4, 4, 14.0);
-    mat2.addElement(5, 5, 15.0);
-    mat2.addElement(6, 6, 16.0);
-    mat2.addElement(7, 7, 17.0);
+    file >> n2;
+    for (int i = 0; i < n2; ++i) {
+        int row, col;
+        double value;
+        file >> row >> col >> value;
+        mat2.addElement(row, col, value);
+    }
     mat2.finalize();
 
+    file.close();
+    
     std::cout << "Matrix 1:" << std::endl;
     mat1.print();
 
