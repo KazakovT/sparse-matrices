@@ -142,10 +142,10 @@ int main() {
         throw std::runtime_error("Unable to open file");
     }
 
-    int rows;
-    file >> rows;
-    SparseMatrix mat1(rows, rows);
-    SparseMatrix mat2(rows, rows);
+    int n;
+    file >> n;
+    SparseMatrix mat1(n, n);
+    SparseMatrix mat2(n, n);
 
     int n1, n2;
     file >> n1;
