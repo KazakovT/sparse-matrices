@@ -1,5 +1,5 @@
-# sparse-matrices
-simple operations on sparse matrices
+# sparse-matrix
+simple operations on sparse matrix
 
 ## Описание
 Программа представляет собой создание разреженных матриц с реализованными для них простыми операциями(+,*)
