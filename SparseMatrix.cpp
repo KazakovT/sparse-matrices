@@ -2,6 +2,9 @@
 #include <iostream>
 #include <chrono>
 #include <random>
+#include <fstream>
+#include <map>
+#include <utility>
 SparseMatrix::SparseMatrix(int rows, int cols) : rows(rows), cols(cols), row_start(rows + 1, 0) {}
 
 void SparseMatrix::addElement(int row, int col, double value) {
@@ -182,10 +185,35 @@ int main() {
 
     std::cout << "Result of matrix multiplication:" << std::endl;
     resultMUL.print();
+    
+    SparseMatrix mat3(10000, 10000);
+    SparseMatrix mat4(10000, 10000);
+    std::map<std::pair<int, int>, double> matrix3;
+    std::map<std::pair<int, int>, double> matrix4;
 
-    for (int num_threads = 1; num_threads <= 15; ++num_threads) {
-        measurePerformance(mat1, mat2, num_threads);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 9999);
+    int row, col;
+    while (matrix3.size() != 1000) {
+        row = dis(gen);
+        col = dis(gen);
+        matrix3[{row, col}] = std::rand();
     }
-
+    for (const auto& pair : matrix3) {
+        mat3.addElement(pair.first.first, pair.first.second, pair.second);
+    }
+    while (matrix4.size() != 1000) {
+        row = dis(gen);
+        col = dis(gen);
+        matrix4[{row, col}] = std::rand();
+    }
+    for (const auto& pair : matrix4) {
+        mat4.addElement(pair.first.first, pair.first.second, pair.second);
+    }
+    for (int num_threads = 1; num_threads <= 15; ++num_threads) {
+        measurePerformance(mat3, mat4, num_threads);
+    }
+    
     return 0;
 }
