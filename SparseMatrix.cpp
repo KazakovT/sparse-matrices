@@ -5,14 +5,15 @@
 #include <fstream>
 #include <map>
 #include <utility>
+#include <omp.h>
 SparseMatrix::SparseMatrix(int rows, int cols) : rows(rows), cols(cols), row_start(rows + 1, 0) {}
+int threads_num = 1;
 
 void SparseMatrix::addElement(int row, int col, double value) {
-    if (value != 0 && unique_indices.find({ row, col }) == unique_indices.end()) {
+    if (value != 0) {
         values.push_back(value);
         column_indices.push_back(col);
         row_start[row + 1]++;
-        unique_indices.insert({ row, col });
     }
 }
 
@@ -29,26 +30,19 @@ SparseMatrix SparseMatrix::operator+(const SparseMatrix& other) const {
 
     SparseMatrix result(rows, cols);
     std::map<std::pair<int, int>, double> temp_map;
-
     // Add elements from the first matrix
-    #pragma omp parallel for
-    for (int i = 0; i < rows; ++i) {
-        for (int j = row_start[i]; j < row_start[i + 1]; ++j) {
-            {
-                temp_map[{i, column_indices[j]}] += values[j];
-            }
-        }
-    }
 
+ #pragma omp parallel for num_threads(threads_num)
+        for (int i = 0; i < rows; ++i)
+            for (int j = row_start[i]; j < row_start[i + 1]; ++j)
+                temp_map[{i, column_indices[j]}] += values[j];
+
+                        
     // Add elements from the second matrix
-    #pragma omp parallel for
-    for (int i = 0; i < other.rows; ++i) {
-        for (int j = other.row_start[i]; j < other.row_start[i + 1]; ++j) {
-            {
+ #pragma omp parallel for num_threads(threads_num) 
+        for (int i = 0; i < other.rows; ++i)
+            for (int j = other.row_start[i]; j < other.row_start[i + 1]; ++j)
                 temp_map[{i, other.column_indices[j]}] += other.values[j];
-            }
-        }
-    }
 
     // Fill the result matrix
     for (const auto& elem : temp_map) {
@@ -68,23 +62,20 @@ SparseMatrix SparseMatrix::operator*(const SparseMatrix& other) const {
     std::vector<double> temp_values;
     std::vector<int> temp_column_indices;
     std::vector<int> temp_row_start(rows + 1, 0);
-
-
     std::vector<std::map<int, double>> local_row_maps(rows);
 
-    #pragma omp parallel for
-    for (int i = 0; i < rows; ++i) {
-        for (int j = row_start[i]; j < row_start[i + 1]; ++j) {
-            int col = column_indices[j];
-            double value = values[j];
-            for (int k = other.row_start[col]; k < other.row_start[col + 1]; ++k) {
-                 int other_col = other.column_indices[k];
-                 local_row_maps[i][other_col] += value * other.values[k];
+        #pragma omp parallel for num_threads(threads_num)
+        for (int i = 0; i < rows; ++i) {
+            for (int j = row_start[i]; j < row_start[i + 1]; ++j) {
+                int col = column_indices[j];
+                double value = values[j];
+                for (int k = other.row_start[col]; k < other.row_start[col + 1]; ++k) {
+                    int other_col = other.column_indices[k];
+                    local_row_maps[i][other_col] += value * other.values[k];
+                }
             }
         }
-    }
-
-        
+   
     for (int i = 0; i < rows; ++i) {
         for (const auto& elem : local_row_maps[i]) {
             temp_values.push_back(elem.second);
@@ -101,7 +92,7 @@ SparseMatrix SparseMatrix::operator*(const SparseMatrix& other) const {
     result.values = temp_values;
     result.column_indices = temp_column_indices;
     result.row_start = temp_row_start;
-
+    
     return result;
 }
 
@@ -122,7 +113,6 @@ void SparseMatrix::print() const {
 }
 
 void measurePerformance(const SparseMatrix& mat1, const SparseMatrix& mat2, int num_threads) {
-    omp_set_num_threads(num_threads);
 
     auto start = std::chrono::high_resolution_clock::now();
     SparseMatrix result_add = mat1 + mat2;
@@ -140,15 +130,15 @@ void measurePerformance(const SparseMatrix& mat1, const SparseMatrix& mat2, int 
 }
 
 int main() {
-   std::ifstream file("input.txt");
+    std::ifstream file("input.txt");
     if (!file.is_open()) {
         throw std::runtime_error("Unable to open file");
     }
 
-    int n;
-    file >> n;
-    SparseMatrix mat1(n, n);
-    SparseMatrix mat2(n, n);
+    int N;
+    file >> N;
+    SparseMatrix mat1(N, N);
+    SparseMatrix mat2(N, N);
 
     int n1, n2;
     file >> n1;
@@ -170,7 +160,7 @@ int main() {
     mat2.finalize();
 
     file.close();
-    
+
     std::cout << "Matrix 1:" << std::endl;
     mat1.print();
 
@@ -185,7 +175,7 @@ int main() {
 
     std::cout << "Result of matrix multiplication:" << std::endl;
     resultMUL.print();
-    
+
     SparseMatrix mat3(10000, 10000);
     SparseMatrix mat4(10000, 10000);
     std::map<std::pair<int, int>, double> matrix3;
@@ -195,7 +185,7 @@ int main() {
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 9999);
     int row, col;
-    while (matrix3.size() != 1000) {
+    while (matrix3.size() != 100000) {
         row = dis(gen);
         col = dis(gen);
         matrix3[{row, col}] = std::rand();
@@ -203,7 +193,7 @@ int main() {
     for (const auto& pair : matrix3) {
         mat3.addElement(pair.first.first, pair.first.second, pair.second);
     }
-    while (matrix4.size() != 1000) {
+    while (matrix4.size() != 100000) {
         row = dis(gen);
         col = dis(gen);
         matrix4[{row, col}] = std::rand();
@@ -211,9 +201,13 @@ int main() {
     for (const auto& pair : matrix4) {
         mat4.addElement(pair.first.first, pair.first.second, pair.second);
     }
-    for (int num_threads = 1; num_threads <= 15; ++num_threads) {
+
+    for (int num_threads = 1; num_threads <= 15; num_threads++) {
+        
         measurePerformance(mat3, mat4, num_threads);
+        threads_num++;
     }
-    
+  
+
     return 0;
 }
