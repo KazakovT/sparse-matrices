@@ -201,7 +201,8 @@ int main() {
     for (const auto& pair : matrix4) {
         mat4.addElement(pair.first.first, pair.first.second, pair.second);
     }
-
+    mat3.finalize();
+    mat4.finalize();
     for (int num_threads = 1; num_threads <= 15; num_threads++) {
         
         measurePerformance(mat3, mat4, num_threads);
